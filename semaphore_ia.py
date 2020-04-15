@@ -3,7 +3,6 @@
 
 
 import numpy as np
-import cv2
 from time import time
 
 def sigmoid(x):
@@ -49,17 +48,15 @@ def relu_prime(z):
 class SemaphoreIA:
     """Réseau de neuronnes Perceptron multicouches."""
 
-    def __init__(self, train, learningrate, imshow=1):
+    def __init__(self, train, learningrate):
         """train = Nombre de shot pour l'apprentissage
         learningrate = coeff important
-        imshow = 0 ou 1 pour affichage d'image ou non pendant l'exécution
         """
 
         print("Calcul avec numpy ... numpy ... numpy ... numpy ... ")
         
         self.train = train
         self.learningrate = learningrate
-        self.imshow = imshow
 
         # Réseau de neurones: colonne 1600 en entrée, 2 nodes de 100, sortie de 27 caractères
         self.layers = [1600, 100, 100, 27]
@@ -86,10 +83,6 @@ class SemaphoreIA:
 
         print("Training...")
 
-        # Affichage des images pour distraire les mangalore
-        if self.imshow:
-            cv2.namedWindow('img')
-
         # Matrice diagonale de 1
         diagonale = np.eye(27, 27)
 
@@ -109,15 +102,6 @@ class SemaphoreIA:
         # nombre_lettre = nombre correspondant à la lettre de l'image
         # i pour itération, vecteur_colonne = x_train de i, nombre_lettre = y_train de i
         for i, (vecteur_ligne, nombre_lettre) in enumerate(zip(self.x_train, self.y_train)):
-
-            # Affichage pour distraire les mangalore
-            if self.imshow:
-                if i % 400 == 0:
-                    img = vecteur_ligne * 255
-                    img = img.reshape(40,40)
-                    img = cv2.resize(img, (600, 600), interpolation=cv2.INTER_AREA)
-                    cv2.imshow("img", img)
-                    cv2.waitKey(1)
 
             # la ligne devient colonne
             vecteur_colonne = np.array(vecteur_ligne, ndmin=2).T
@@ -160,7 +144,6 @@ class SemaphoreIA:
         # Dans un fichier
         np.save('./weights.npy', weight_list)
         print('weights.npy enregistré')
-        cv2.destroyAllWindows()
 
     def testing(self):
         """Teste avec les images de testing, retourne le ratio de bon résultats"""
@@ -194,7 +177,7 @@ class SemaphoreIA:
 def main():
     train = 60000
     learningrate = 0.023
-    sia = SemaphoreIA(train, learningrate, imshow=0)
+    sia = SemaphoreIA(train, learningrate)
     sia.training()
     resp = sia.testing()
     print("Learningrate: {} Résultat {}".format(learningrate, round(resp, 1)))

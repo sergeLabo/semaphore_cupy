@@ -4,7 +4,6 @@
 
 import cupy as cp
 import numpy as np
-import cv2
 from time import time
 
 def sigmoid(x):
@@ -50,17 +49,15 @@ def relu_prime(z):
 class SemaphoreIA:
     """Réseau de neuronnes Perceptron multicouches."""
 
-    def __init__(self, train, learningrate, imshow=1):
+    def __init__(self, train, learningrate):
         """train = Nombre de shot pour l'apprentissage
         learningrate = coeff important
-        imshow = 0 ou 1 pour affichage d'image ou non pendant l'exécution
         """
 
         print("Calcul avec cupy ... cupy ... cupy ... cupy ... ")
         
         self.train = train
         self.learningrate = learningrate
-        self.imshow = imshow
 
         # Réseau de neurones: colonne 1600 en entrée, 2 nodes de 100, sortie de 27 caractères
         self.layers = [1600, 100, 100, 27]
@@ -70,12 +67,18 @@ class SemaphoreIA:
 
         fichier = cp.load('./semaphore.npz')
 
-        self.x_train = cp.asnumpy(fichier['x_train'])
-        self.y_train = cp.asnumpy(fichier['y_train'])
+        a = cp.array(fichier['x_train'])
+        b = cp.array(fichier['y_train'])
+        c = cp.array(fichier['x_test'])
+        d = cp.array(fichier['y_test'])
+        print(type(a))
 
-        self.x_test = cp.asnumpy(fichier['x_test'])
-        self.y_test = cp.asnumpy(fichier['y_test'])
-
+        self.x_train = a
+        self.y_train = b
+        self.x_test = c
+        self.y_test = d
+        
+        print(type(self.x_train))
         a = "Training: Shot {} Lettre {}; Testing: Shot {} Lettre {}"
         print(a.format( len(self.x_train), len(self.y_train),
                         len(self.x_test),  len(self.y_test)))
@@ -86,10 +89,6 @@ class SemaphoreIA:
         """
 
         print("Training...")
-
-        # Affichage des images pour distraire les mangalore
-        if self.imshow:
-            cv2.namedWindow('img')
 
         # Matrice diagonale de 1
         diagonale = cp.eye(27, 27)
@@ -111,18 +110,13 @@ class SemaphoreIA:
         # i pour itération, vecteur_colonne = x_train de i, nombre_lettre = y_train de i
         for i, (vecteur_ligne, nombre_lettre) in enumerate(zip(self.x_train, self.y_train)):
 
-            # Affichage pour distraire les mangalore
-            if self.imshow:
-                if i % 400 == 0:
-                    img = vecteur_ligne * 255
-                    img = img.reshape(40,40)
-                    img = cv2.resize(img, (600, 600), interpolation=cv2.INTER_AREA)
-                    cv2.imshow("img", img)
-                    cv2.waitKey(1)
-
             # la ligne devient colonne
             vecteur_colonne = cp.array(vecteur_ligne, ndmin=2).T
 
+            # IndexError: arrays used as indices must be of integer or boolean type.
+            # (actual: <class 'numpy.object_'>) in diagonale[:,[nombre_lettre]]
+            nombre_lettre = int(nombre_lettre)
+            
             # Forward propagation
             node_dict[0] = vecteur_colonne
             for k in range(len(self.layers)-1):
@@ -138,6 +132,7 @@ class SemaphoreIA:
 
             # Retro propagation, delta_a = écart entre la sortie réelle et attendue
             delta_a = vecteur_colonne - diagonale[:,[nombre_lettre]]
+            
             # Parcours des nodes en sens inverse pour corriger proportionnellement
             # les poids en fonction de l'erreur par rapport à la valeur souhaitée
             # Descente du Gradient stochastique
@@ -160,8 +155,6 @@ class SemaphoreIA:
         cp.save('./weights_cupy.npy', weight_list, allow_pickle=True)
         print('weights_cupy.npy enregistré')
         
-        cv2.destroyAllWindows()
-        
     def testing(self):
         """Teste avec les images de testing, retourne le ratio de bon résultats"""
 
@@ -176,7 +169,7 @@ class SemaphoreIA:
         for vecteur_ligne, nombre_lettre in zip(self.x_test, self.y_test):
             
             vecteur_ligne = cp.array(vecteur_ligne)
-            nombre_lettre = cp.array(nombre_lettre)
+            nombre_lettre = cp.array(nombre_lettre) 
         
             for k in range(len(self.layers)-1):
                 vecteur_ligne = self.activations[k](cp.dot(weight_list[k], vecteur_ligne))
@@ -195,7 +188,7 @@ class SemaphoreIA:
 def main():
     train = 60000
     learningrate = 0.023
-    sia = SemaphoreIA(train, learningrate, imshow=0)
+    sia = SemaphoreIA(train, learningrate)
     sia.training()
     resp = sia.testing()
     print("Learningrate: {} Résultat {}".format(learningrate, round(resp, 1)))
